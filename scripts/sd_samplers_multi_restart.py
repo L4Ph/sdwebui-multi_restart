@@ -2,17 +2,16 @@ import torch
 import tqdm
 import k_diffusion.sampling
 from modules import sd_samplers_common, sd_samplers_kdiffusion, sd_samplers
-
-import modules.scripts as scripts
-import gradio as gr
+import json
 import os
-
-from modules import shared
-from modules import script_callbacks
 
 
 NAME = 'Multi Restart'
 ALIAS = 'multiRestart'
+script_path = os.path.abspath(__file__)
+current_directory = os.path.dirname(script_path)
+root_directory = os.path.dirname(os.path.dirname(os.path.dirname(current_directory)))
+config_file_path = os.path.join(root_directory, 'config.json')
 
 @torch.no_grad()
 def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disable=None, s_noise=1., restart_list=None):
@@ -46,7 +45,9 @@ def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disa
         return x
 
     steps = sigmas.shape[0] - 1
-    restart_steps = shared.opts['restart_steps']
+    with open(config_file_path, 'r') as file:
+        config_data = json.load(file)
+    restart_steps = int(config_data.get("restart_steps"))
     if restart_list is None:
         if steps >= restart_steps * 2:
             restart_times = 1
@@ -92,18 +93,3 @@ if not NAME in [x.name for x in sd_samplers.all_samplers]:
     ]
     sd_samplers.all_samplers += samplers_data_multi_restart
     sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
-
-
-def on_ui_settings():
-    section = ('multiRestart', "Multi Restart")
-    shared.opts.add_option(
-        "restart_steps",
-        shared.OptionInfo(
-            6,  # default
-            "Number of restart steps",
-            gr.Number,
-            {"interactive": True, "label": "Restart Steps"},
-            section=section)
-    )
-
-script_callbacks.on_ui_settings(on_ui_settings)

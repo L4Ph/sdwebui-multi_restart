@@ -13,7 +13,7 @@ def on_ui_settings():
             6,  # default
             "Number of restart steps",
             gr.Number,
-            {"interactive": True, "label": "Restart Steps"},
+            {"interactive": True},
             section=section)
     )
 
