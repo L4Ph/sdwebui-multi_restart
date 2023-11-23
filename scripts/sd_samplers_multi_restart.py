@@ -1,6 +1,7 @@
 import torch
 import tqdm
 import k_diffusion.sampling
+from modules import sd_samplers_common, sd_samplers_kdiffusion, sd_samplers
 
 
 NAME = 'Multi Restart'
