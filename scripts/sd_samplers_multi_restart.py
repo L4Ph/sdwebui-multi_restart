@@ -3,6 +3,13 @@ import tqdm
 import k_diffusion.sampling
 from modules import sd_samplers_common, sd_samplers_kdiffusion, sd_samplers
 
+import modules.scripts as scripts
+import gradio as gr
+import os
+
+from modules import shared
+from modules import script_callbacks
+
 
 NAME = 'Multi Restart'
 ALIAS = 'multiRestart'
@@ -39,7 +46,7 @@ def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disa
         return x
 
     steps = sigmas.shape[0] - 1
-    restart_steps = 6
+    restart_steps = shared.opts['restart_steps']
     if restart_list is None:
         if steps >= restart_steps * 2:
             restart_times = 1
@@ -85,3 +92,18 @@ if not NAME in [x.name for x in sd_samplers.all_samplers]:
     ]
     sd_samplers.all_samplers += samplers_data_multi_restart
     sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
+
+
+def on_ui_settings():
+    section = ('multiRestart', "Multi Restart")
+    shared.opts.add_option(
+        "restart_steps",
+        shared.OptionInfo(
+            6,  # default
+            "Number of restart steps",
+            gr.Number,
+            {"interactive": True, "label": "Restart Steps"},
+            section=section)
+    )
+
+script_callbacks.on_ui_settings(on_ui_settings)
