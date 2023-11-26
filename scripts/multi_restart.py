@@ -64,7 +64,7 @@ def multi_restart_sampler(
         return x, step_id
 
     steps = sigmas.shape[0] - 1
-    restart_steps = int(config['s_noise'])
+    restart_steps = int(config['restart_steps'])
 
     if restart_list is None:
         if steps >= restart_steps * 2:
