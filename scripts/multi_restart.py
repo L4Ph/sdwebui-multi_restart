@@ -3,16 +3,15 @@ import os
 import torch
 import tqdm
 import k_diffusion.sampling
+from pathlib import Path
 from modules import sd_samplers_common, sd_samplers_kdiffusion, sd_samplers
 
 NAME = 'Multi Restart'
 ALIAS = 'multiRestart'
+ROOT_DIR = Path().absolute() # Webui root path
 
 def load_config():
-    script_path = os.path.abspath(__file__)
-    root_directory = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.dirname(script_path))))
-    config_path = os.path.join(root_directory, 'config.json')
+    config_path = ROOT_DIR / 'config.json'
 
     try:
         with open(config_path, 'r') as file:
