@@ -9,7 +9,6 @@ NAME = 'Multi Restart'
 ALIAS = 'multiRestart'
 
 def load_config():
-    """設定ファイルから全ての設定を読み込み、辞書として返す。"""
     script_path = os.path.abspath(__file__)
     root_directory = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(script_path))))
@@ -27,13 +26,6 @@ config = load_config()
 def multi_restart_sampler(
         model, x, sigmas, extra_args=None, callback=None, disable=None,
         s_noise=config['s_noise'], restart_list=None):
-    """
-    Implements restart sampling in Restart Sampling for Improving Generative 
-    Processes (2023).
-    Restart_list format: {min_sigma: [restart_steps, restart_times, max_sigma]}
-    If restart_list is None, will choose restart_list automatically, otherwise 
-    will use the given restart_list.
-    """
     extra_args = extra_args or {}
     s_in = x.new_ones([x.shape[0]])
     step_id = 0
