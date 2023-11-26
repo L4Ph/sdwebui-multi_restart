@@ -6,7 +6,7 @@ from modules import shared
 from modules import script_callbacks
 
 def on_ui_settings():
-    section = ('multiRestart', "Multi Restart")
+    section = ('sampler-params', "Sampler parameters")
     shared.opts.add_option(
         "restart_steps",
         shared.OptionInfo(
