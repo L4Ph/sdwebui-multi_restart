@@ -15,7 +15,7 @@ def get_config_file_path():
     return os.path.join(root_directory, 'config.json')
 
 @torch.no_grad()
-def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disable=None, s_noise=1., restart_list=None):
+def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disable=None, s_noise=1.05, restart_list=None):
     """
     Implements restart sampling in Restart Sampling for Improving Generative Processes (2023).
     Restart_list format: {min_sigma: [ restart_steps, restart_times, max_sigma]}
