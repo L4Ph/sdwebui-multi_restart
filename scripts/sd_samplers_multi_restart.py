@@ -5,27 +5,29 @@ from modules import sd_samplers_common, sd_samplers_kdiffusion, sd_samplers
 import json
 import os
 
-
 NAME = 'Multi Restart'
 ALIAS = 'multiRestart'
-script_path = os.path.abspath(__file__)
-current_directory = os.path.dirname(script_path)
-root_directory = os.path.dirname(os.path.dirname(os.path.dirname(current_directory)))
-config_file_path = os.path.join(root_directory, 'config.json')
+
+def get_config_file_path():
+    """ Returns the path to the config file. """
+    script_path = os.path.abspath(__file__)
+    root_directory = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(script_path))))
+    return os.path.join(root_directory, 'config.json')
 
 @torch.no_grad()
 def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disable=None, s_noise=1., restart_list=None):
-    """Implements restart sampling in Restart Sampling for Improving Generative Processes (2023)
-    Restart_list format: {min_sigma: [ restart_steps, restart_times, max_sigma]}
-    If restart_list is None: will choose restart_list automatically, otherwise will use the given restart_list
     """
-    extra_args = {} if extra_args is None else extra_args
+    Implements restart sampling in Restart Sampling for Improving Generative Processes (2023).
+    Restart_list format: {min_sigma: [ restart_steps, restart_times, max_sigma]}
+    If restart_list is None, will choose restart_list automatically, otherwise will use the given restart_list.
+    """
+    extra_args = extra_args or {}
     s_in = x.new_ones([x.shape[0]])
     step_id = 0
     from k_diffusion.sampling import to_d, get_sigmas_karras
 
-    def heun_step(x, old_sigma, new_sigma, second_order=True):
-        nonlocal step_id
+    def heun_step(x, old_sigma, new_sigma, model, extra_args, s_in, callback, step_id, second_order=True):
+        """ Performs a Heun step for the given parameters. """
         denoised = model(x, old_sigma * s_in, **extra_args)
         d = to_d(x, old_sigma, denoised)
         if callback is not None:
@@ -42,12 +44,16 @@ def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disa
             d_prime = (d + d_2) / 2
             x = x + d_prime * dt
         step_id += 1
-        return x
+        return x, step_id
 
     steps = sigmas.shape[0] - 1
-    with open(config_file_path, 'r') as file:
-        config_data = json.load(file)
-    restart_steps = int(config_data.get("restart_steps"))
+    try:
+        with open(get_config_file_path(), 'r') as file:
+            config_data = json.load(file)
+        restart_steps = int(config_data.get("restart_steps"))
+    except Exception as e:
+        raise RuntimeError(f"Failed to read configuration file: {e}")
+
     if restart_list is None:
         if steps >= restart_steps * 2:
             restart_times = 1
@@ -79,7 +85,7 @@ def multi_restart_sampler(model, x, sigmas, extra_args=None, callback=None, disa
             last_sigma = old_sigma
         elif last_sigma < old_sigma:
             x = x + k_diffusion.sampling.torch.randn_like(x) * s_noise * (old_sigma ** 2 - last_sigma ** 2) ** 0.5
-        x = heun_step(x, old_sigma, new_sigma)
+        x, step_id = heun_step(x, old_sigma, new_sigma, model, extra_args, s_in, callback, step_id)
         last_sigma = new_sigma
 
     return x
