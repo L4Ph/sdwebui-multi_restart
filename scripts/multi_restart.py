@@ -1,5 +1,4 @@
 import json
-import os
 import torch
 import tqdm
 import k_diffusion.sampling
@@ -18,7 +17,6 @@ def load_config():
             return json.load(file)
     except Exception as e:
         raise RuntimeError(f"Failed to read configuration file: {e}")
-
 config = load_config()
 
 @torch.no_grad()
@@ -105,16 +103,17 @@ def multi_restart_sampler(
     return x
 
 
-if not NAME in [x.name for x in sd_samplers.all_samplers]:
-    multi_restart_samplers = [(NAME, multi_restart_sampler, [ALIAS], {})]
-    samplers_data_multi_restart = [
-        sd_samplers_common.SamplerData(
-            label, 
-            lambda model, funcname=funcname: 
-                sd_samplers_kdiffusion.KDiffusionSampler(funcname, model), 
-            aliases, options)
-        for label, funcname, aliases, options in multi_restart_samplers
-        if callable(funcname) or hasattr(k_diffusion.sampling, funcname)
-    ]
-    sd_samplers.all_samplers += samplers_data_multi_restart
-    sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
+def add_sampler():
+    if not NAME in [x.name for x in sd_samplers.all_samplers]:
+        multi_restart_samplers = [(NAME, multi_restart_sampler, [ALIAS], {})]
+        samplers_data_multi_restart = [
+            sd_samplers_common.SamplerData(
+                label, 
+                lambda model, funcname=funcname: 
+                    sd_samplers_kdiffusion.KDiffusionSampler(funcname, model), 
+                aliases, options)
+            for label, funcname, aliases, options in multi_restart_samplers
+            if callable(funcname) or hasattr(k_diffusion.sampling, funcname)
+        ]
+        sd_samplers.all_samplers += samplers_data_multi_restart
+        sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
