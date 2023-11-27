@@ -5,8 +5,8 @@ import k_diffusion.sampling
 from pathlib import Path
 from modules import sd_samplers_common, sd_samplers_kdiffusion, sd_samplers
 
-NAME = "Multi Restart"
-ALIAS = "multiRestart"
+NAME = "LACOM Restart"
+ALIAS = "LACOMRestart"
 ROOT_DIR = Path().absolute()  # Webui root path
 
 
@@ -24,7 +24,36 @@ config = load_config()
 
 
 @torch.no_grad()
-def multi_restart_sampler(
+def lcm_sampler(
+    model, x, sigmas, extra_args=None, callback=None, disable=None, noise_sampler=None
+):
+    extra_args = {} if extra_args is None else extra_args
+    noise_sampler = (
+        k_diffusion.sampling.default_noise_sampler(x)
+        if noise_sampler is None
+        else noise_sampler
+    )
+    s_in = x.new_ones([x.shape[0]])
+    for i in tqdm.auto.trange(len(sigmas) - 1, disable=disable):
+        denoised = model(x, sigmas[i] * s_in, **extra_args)
+        if callback is not None:
+            callback(
+                {
+                    "x": x,
+                    "i": i,
+                    "sigma": sigmas[i],
+                    "sigma_hat": sigmas[i],
+                    "denoised": denoised,
+                }
+            )
+
+        x = denoised
+        if sigmas[i + 1] > 0:
+            x += sigmas[i + 1] * noise_sampler(sigmas[i], sigmas[i + 1])
+    return x
+
+
+def lacom_restart_sampler(
     model,
     x,
     sigmas,
@@ -125,6 +154,7 @@ def multi_restart_sampler(
                 * s_noise
                 * (old_sigma**2 - last_sigma**2) ** 0.5
             )
+        # result_lcm_sampler の結果を使用
         x = heun_step(x, old_sigma, new_sigma)
         last_sigma = new_sigma
 
@@ -132,7 +162,7 @@ def multi_restart_sampler(
 
 
 if not NAME in [x.name for x in sd_samplers.all_samplers]:
-    multi_restart_samplers = [(NAME, multi_restart_sampler, [ALIAS], {})]
+    lacom_restart_samplers = [(NAME, lacom_restart_sampler, [ALIAS], {})]
     samplers_data_multi_restart = [
         sd_samplers_common.SamplerData(
             label,
@@ -142,8 +172,10 @@ if not NAME in [x.name for x in sd_samplers.all_samplers]:
             aliases,
             options,
         )
-        for label, funcname, aliases, options in multi_restart_samplers
+        for label, funcname, aliases, options in lacom_restart_samplers
         if callable(funcname) or hasattr(k_diffusion.sampling, funcname)
     ]
     sd_samplers.all_samplers += samplers_data_multi_restart
     sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
+
+lcm_result = lcm_sampler(callback=lacom_restart_sampler)

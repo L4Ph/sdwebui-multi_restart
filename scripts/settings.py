@@ -17,6 +17,16 @@ def on_ui_settings():
             component_args={"minimum": 0, "maximum": 100, "step": 1},
             section=section,
         ),
+    ),
+    shared.opts.add_option(
+        "lacom_restart_steps",
+        shared.OptionInfo(
+            2,
+            label="restart_steps for LACOM Restart",
+            component=gr.Slider,
+            component_args={"minimum": 0, "maximum": 100, "step": 1},
+            section=section,
+        ),
     )
 
 
