@@ -34,22 +34,17 @@ def multi_restart_sampler(
     s_noise=config["s_noise"],
     restart_list=None,
 ):
-    extra_args = extra_args or {}
+    """Implements restart sampling in Restart Sampling for Improving Generative Processes (2023)
+    Restart_list format: {min_sigma: [ restart_steps, restart_times, max_sigma]}
+    If restart_list is None: will choose restart_list automatically, otherwise will use the given restart_list
+    """
+    extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
     step_id = 0
     from k_diffusion.sampling import to_d, get_sigmas_karras
 
-    def heun_step(
-        x,
-        old_sigma,
-        new_sigma,
-        model,
-        extra_args,
-        s_in,
-        callback,
-        step_id,
-        second_order=True,
-    ):
+    def heun_step(x, old_sigma, new_sigma, second_order=True):
+        nonlocal step_id
         denoised = model(x, old_sigma * s_in, **extra_args)
         d = to_d(x, old_sigma, denoised)
         if callback is not None:
@@ -74,11 +69,10 @@ def multi_restart_sampler(
             d_prime = (d + d_2) / 2
             x = x + d_prime * dt
         step_id += 1
-        return x, step_id
+        return x
 
     steps = sigmas.shape[0] - 1
     restart_steps = int(config["restart_steps"])
-
     if restart_list is None:
         if steps >= restart_steps * 2:
             restart_times = 1
@@ -135,28 +129,25 @@ def multi_restart_sampler(
                 * s_noise
                 * (old_sigma**2 - last_sigma**2) ** 0.5
             )
-        x, step_id = heun_step(
-            x, old_sigma, new_sigma, model, extra_args, s_in, callback, step_id
-        )
+        x = heun_step(x, old_sigma, new_sigma)
         last_sigma = new_sigma
 
     return x
 
 
-def add_sampler():
-    if not NAME in [x.name for x in sd_samplers.all_samplers]:
-        multi_restart_samplers = [(NAME, multi_restart_sampler, [ALIAS], {})]
-        samplers_data_multi_restart = [
-            sd_samplers_common.SamplerData(
-                label,
-                lambda model, funcname=funcname: sd_samplers_kdiffusion.KDiffusionSampler(
-                    funcname, model
-                ),
-                aliases,
-                options,
-            )
-            for label, funcname, aliases, options in multi_restart_samplers
-            if callable(funcname) or hasattr(k_diffusion.sampling, funcname)
-        ]
-        sd_samplers.all_samplers += samplers_data_multi_restart
-        sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
+if not NAME in [x.name for x in sd_samplers.all_samplers]:
+    multi_restart_samplers = [(NAME, multi_restart_sampler, [ALIAS], {})]
+    samplers_data_multi_restart = [
+        sd_samplers_common.SamplerData(
+            label,
+            lambda model, funcname=funcname: sd_samplers_kdiffusion.KDiffusionSampler(
+                funcname, model
+            ),
+            aliases,
+            options,
+        )
+        for label, funcname, aliases, options in multi_restart_samplers
+        if callable(funcname) or hasattr(k_diffusion.sampling, funcname)
+    ]
+    sd_samplers.all_samplers += samplers_data_multi_restart
+    sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
