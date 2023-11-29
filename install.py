@@ -19,7 +19,7 @@ def load_config():
 config, file_name = load_config()  # config と file_name を取得
 
 # set "restart_steps"
-config["restart_steps"] = 6.0
+config["restart_steps"] = 6
 
 # JSONファイルを書き込む
 with open(file_name, "w") as json_file:
