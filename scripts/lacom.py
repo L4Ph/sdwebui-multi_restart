@@ -24,7 +24,7 @@ config = load_config()
 
 
 @torch.no_grad()
-def lcm_sampler(
+def sample_lcm(
     model, x, sigmas, extra_args=None, callback=None, disable=None, noise_sampler=None
 ):
     extra_args = {} if extra_args is None else extra_args
@@ -55,8 +55,8 @@ def lcm_sampler(
 
 def lacom_restart_sampler(
     model,
-    x,
     sigmas,
+    x=None,
     extra_args=None,
     callback=None,
     disable=None,
@@ -67,6 +67,9 @@ def lacom_restart_sampler(
     s_in = x.new_ones([x.shape[0]])
     step_id = 0
     from k_diffusion.sampling import to_d, get_sigmas_karras
+
+    if x is None:
+        x = sample_lcm(model, sigmas, extra_args, callback, disable)
 
     def heun_step(x, old_sigma, new_sigma, second_order=True):
         nonlocal step_id
@@ -177,5 +180,3 @@ if not NAME in [x.name for x in sd_samplers.all_samplers]:
     ]
     sd_samplers.all_samplers += samplers_data_multi_restart
     sd_samplers.all_samplers_map = {x.name: x for x in sd_samplers.all_samplers}
-
-lcm_result = lcm_sampler(callback=lacom_restart_sampler)
